@@ -49,7 +49,7 @@ class Query
     /** @var null|string */
     protected $tableName;
 
-    /** @var null|string */
+    /** @var null|string|string[] */
     protected $tableKey;
 
     /** @var \Parable\ORM\Database */
@@ -103,7 +103,7 @@ class Query
     /**
      * Set the tableKey to work with (for delete & update)
      *
-     * @param string $key
+     * @param string|string[] $key
      *
      * @return $this
      */
@@ -114,7 +114,7 @@ class Query
     }
 
     /**
-     * @return null|string
+     * @return null|string|string[]
      */
     public function getTableKey()
     {
@@ -600,14 +600,11 @@ class Query
 
             $query[] = "UPDATE " . $this->getQuotedTableName();
 
-            // Set the table values to defaults
-            $tableKey = 'id';
-            $tableKeyValue = null;
-
+            $tableKeys = [];
             $values = [];
             foreach ($this->values as $key => $value) {
                 // skip id, since we'll use that as a where condition
-                if ($key !== $this->tableKey) {
+                if ($key !== $this->tableKey && !(is_array($this->tableKey) && in_array($key, $this->tableKey))) {
                     if ($value === null) {
                         $correctValue = 'NULL';
                     } else {
@@ -619,13 +616,24 @@ class Query
                     // Add key & value combo to the array
                     $values[] = $key . " = " . $correctValue;
                 } else {
-                    $tableKey = $key;
-                    $tableKeyValue = $value;
+                    $tableKeys[$key] = $value;
                 }
             }
+
+            // Possibly set the table values to defaults (backwards compatibility?)
+            if (empty($tableKeys)) {
+                $tableKeys['id'] = null;
+            }
             $query[] = "SET " . implode(', ', $values);
-            $query[] = "WHERE " . $this->getQuotedTableName() . '.' . $this->quoteIdentifier($tableKey);
-            $query[] = " = " . $this->quote($tableKeyValue);
+            $query[] = "WHERE";
+
+            foreach($tableKeys as $tableKey => $tableKeyValue) {
+                $query[] = $this->getQuotedTableName() . '.' . $this->quoteIdentifier($tableKey);
+                $query[] = "= " . $this->quote($tableKeyValue);
+                $query[] = "AND";
+            }
+            // Remove the last 'AND'
+            array_pop($query);
         } elseif ($this->action === 'insert') {
             if (count($this->values) == 0) {
                 return '';

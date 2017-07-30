@@ -83,9 +83,52 @@ class Repository
      */
     public function getById($id)
     {
+        $tableKey = $this->getModel()->getTableKey();
+
+        if (is_array($tableKey)) {
+            // Model is a CombinedKey Model. User made a dumb decision calling this function anyway.
+            // Use only the first key instead of breaking things.
+            $tableKey = reset($tableKey);
+        }
+
         $query = $this->createQuery();
         $query->where(
-            $query->buildAndSet([$this->getModel()->getTableKey(), '=', $id])
+            $query->buildAndSet([$tableKey, '=', $id])
+        );
+        $result = $this->database->query($query);
+
+        $model = null;
+        if ($result) {
+            $result = $result->fetchAll(\PDO::FETCH_ASSOC);
+            $entities = $this->handleResult($result);
+            $model = current($entities);
+        }
+        return $model;
+    }
+
+    /**
+     * @param string[] $keyValues
+     *
+     * @return null|\Parable\ORM\Model|\Parable\ORM\Model\CombinedKey
+     */
+    public function getByCombinedKey(array $keyValues)
+    {
+        $tableKeys = $this->getModel()->getTableKey();
+
+        if (!($this->getModel() instanceof Model\CombinedKey) || !is_array($tableKeys)) {
+            // User shouldn't have called this. Gracefully fall back.
+            return $this->getById(reset($keyValues));
+        }
+
+        $conditions = [];
+        foreach ($tableKeys as $i => $key) {
+            $value = isset($keyValues[$i]) ? $keyValues[$i] : null;
+            $conditions[] = [$key, '=', $value];
+        }
+
+        $query = $this->createQuery();
+        $query->where(
+            $query->buildAndSet($conditions)
         );
         $result = $this->database->query($query);
 
