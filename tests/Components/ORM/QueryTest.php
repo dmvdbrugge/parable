@@ -223,7 +223,7 @@ class QueryTest extends \Parable\Tests\Components\ORM\Base
         $this->query->addValue('active', 1);
         $this->query->addValue('thing', null);
 
-        $this->assertSame("UPDATE `user` SET `name` = 'test', `active` = '1', `thing` = NULL WHERE `user`.`id`  = '3';", (string)$this->query);
+        $this->assertSame("UPDATE `user` SET `name` = 'test', `active` = '1', `thing` = NULL WHERE `user`.`id` = '3';", (string)$this->query);
     }
 
     public function testSelectGivesEmptyStringOnNoSelect()
